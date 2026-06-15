@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arcade Hoop Challenge</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    
+    <section id="game.html">
+    <style>
+        :root {
+            --bg-color: #0f172a;       /* Dark slate background */
+            --panel-bg: #1e293b;       /* Crisp card panel slate */
+            --accent-orange: #f97316;  /* Basketball/primary accent */
+            --accent-blue: #38bdf8;    /* UI Highlight blue */
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+            padding: 20px;
+        }
+
+        /* DASHBOARD BOARD CONTAINER */
+        #dashboard {
+            width: 800px;
+            background-color: var(--panel-bg);
+            border: 1px solid #334155;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+
+        .stat-block {
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 800;
+        }
+
+        #multiplier-badge {
+            background-color: #16a34a;
+            padding: 4px 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        #multiplier-badge.clutch {
+            background-color: var(--accent-orange);
+            animation: pulse 1s infinite alternate;
+        }
+
+        /* CANVAS AREA */
+        #game-container {
+            position: relative;
+            width: 800px;
+            height: 500px;
+        }
+
+        canvas {
+            background-color: #111827;
+            border: 1px solid #334155;
+            display: block;
+            cursor: crosshair;
+            border-radius: 4px;
+        }
+
+        /* OVERLAYS / MODALS */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(15, 23, 42, 0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            border-radius: 4px;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .hidden {
+            display: none !important;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        h2 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+            letter-spacing: -0.03em;
+        }
+
+        p.modal-text {
+            color: var(--text-muted);
+            margin-bottom: 25px;
+            font-size: 1rem;
+        }
+
+        .btn {
+            background-color: var(--accent-orange);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: transform 0.1s ease, background-color 0.2s ease;
+        }
+
+        .btn:hover {
+            background-color: #ea580c;
+        }
+
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        /* HIGH SCORE INPUT SLOTS */
+        .record-container {
+            background-color: var(--panel-bg);
+            border: 1px solid #475569;
+            padding: 25px;
+            text-align: center;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            max-width: 360px;
+            width: 100%;
+        }
+
+        .record-title {
+            color: #f59e0b;
+            font-weight: 800;
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+        }
+
+        .initials-input {
+            background: #0f172a;
+            border: 1px solid #475569;
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 800;
+            text-align: center;
+            padding: 8px;
+            width: 120px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+
+        .initials-input:focus {
+            outline: 1px solid var(--accent-blue);
+            border-color: var(--accent-blue);
+        }
+
+        /* TEMPORARY SCREEN ALERTS (CLUTCH NOTIFICATION) */
+        #screen-alert {
+            position: absolute;
+            top: 30%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--accent-orange);
+            font-size: 3rem;
+            font-weight: 800;
+            pointer-events: none;
+            text-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            letter-spacing: -0.02em;
+            text-align: center;
+            z-index: 5;
+            animation: alertPop 2.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes alertPop {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            15% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+            25% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            75% { opacity: 1; filter: blur(0px); }
+            100% { transform: translate(-50%, -70%) scale(0.9); opacity: 0; filter: blur(4px); }
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.05); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="dashboard">
+        <div class="stat-block">
+            <div class="stat-label">Time Left</div>
+            <div class="stat-value" id="time-display">60s</div>
+        </div>
+        <div class="stat-block">
+            <div class="stat-label">Score</div>
+            <div class="stat-value" id="score-display">00</div>
+        </div>
+        <div class="stat-block">
+            <div class="stat-label">Multiplier</div>
+            <div id="multiplier-badge">2x Points</div>
+        </div>
+        <div class="stat-block">
+            <div class="stat-label">Local Record</div>
+            <div class="stat-value" id="record-display" style="font-size: 1.25rem; margin-top: 5px; color: var(--text-muted);">AAA: 00</div>
+        </div>
+    </div>
+
+    <div id="game-container">
+        <div id="alert-anchor"></div>
+
+        <div id="start-overlay" class="overlay">
+            <h2>Arcade Basketball</h2>
+            <p class="modal-text">Click & Drag to Aim. Release to Shoot.</p>
+            <button class="btn" id="start-btn">Start Game</button>
+        </div>
+
+        <div id="game-over-overlay" class="overlay hidden">
+            <h2 style="color: #ef4444;">Game Over</h2>
+            <p class="modal-text" id="final-score-text">Your Final Score: 0</p>
+            
+            <div id="record-logger" class="record-container hidden">
+                <div class="record-title">👑 NEW HIGH SCORE!</div>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Enter your initials to claim the record:</p>
+                <input type="text" id="initials-field" class="initials-input" maxlength="3" placeholder="AAA"><br>
+                <button class="btn" id="save-record-btn" style="padding: 8px 20px; font-size: 0.8rem;">Save Record</button>
+            </div>
+
+            <button class="btn btn-secondary" id="restart-btn">Play Again</button>
+        </div>
+
+        <canvas id="gameCanvas" width="800" height="500"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // DOM nodes
+        const timeDisplay = document.getElementById('time-display');
+        const scoreDisplay = document.getElementById('score-display');
+        const multiplierBadge = document.getElementById('multiplier-badge');
+        const recordDisplay = document.getElementById('record-display');
+        const alertAnchor = document.getElementById('alert-anchor');
+        
+        const startOverlay = document.getElementById('start-overlay');
+        const gameOverOverlay = document.getElementById('game-over-overlay');
+        const recordLogger = document.getElementById('record-logger');
+        const finalScoreText = document.getElementById('final-score-text');
+        const initialsField = document.getElementById('initials-field');
+        
+        const startBtn = document.getElementById('start-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const saveRecordBtn = document.getElementById('save-record-btn');
+
+        // Physics Constants & Variables
+        const GRAVITY = 0.35;
+        let score = 0;
+        let timeLeft = 60;
+        let gameActive = false;
+        let timerInterval = null;
+        let pointMultiplier = 2;
+        let clutchTriggered = false;
+
+        // Interactive Tracking Vectors
+        let isAiming = false;
+        let mouseX = 0;
+        let mouseY = 0;
+
+        // Game Elements
+        let balls = [];
+        
+        // Fixed Ball Spawner Origin Coordinates
+        const spawnX = 130;
+        const spawnY = 400;
+        const ballRadius = 22;
+
+        // Defined Hoop / Backboard Dimensions
+        const backboard = { x: 710, y: 100, width: 10, height: 90 };
+        const rim = { x1: 640, x2: 700, y: 145, thickness: 5 }; 
+        const net = { x1: 642, x2: 698, topY: 147, bottomY: 190 };
+
+        // Initialize / Hydrate High Score Layout from LocalStorage
+        let currentHighScore = parseInt(localStorage.getItem('bball_high_score')) || 0;
+        let currentHighInitials = localStorage.getItem('bball_high_initials') || 'SYS';
+        updateHighScoreUI();
+
+        // EVENT INTERFACES
+        startBtn.addEventListener('click', startGame);
+        restartBtn.addEventListener('click', startGame);
+        saveRecordBtn.addEventListener('click', saveRecord);
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (!gameActive) return;
+            const rect = canvas.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+
+            // Simple Distance formula to check if tracking vector started near ball origin state
+            const dist = Math.hypot(clickX - spawnX, clickY - spawnY);
+            if (dist < 50) {
+                isAiming = true;
+                updateMousePos(e);
+            }
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (isAiming) updateMousePos(e);
+        });
+
+        window.addEventListener('mouseup', (e) => {
+            if (!isAiming) return;
+            isAiming = false;
+
+            // Calculate Force Velocity vector based on drag inverse distance delta
+            const dx = spawnX - mouseX;
+            const dy = spawnY - mouseY;
+            
+            // Scaled multipliers for responsive aiming
+            const vx = dx * 0.13;
+            const vy = dy * 0.13;
+
+            fireBall(vx, vy);
+        });
+
+        // Spacebar shooting mechanism listener
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && gameActive) {
+                e.preventDefault(); // Stop window space scroll behavior
+                // Generate a random high-arc baseline velocity string
+                const vx = 11 + Math.random() * 3;
+                const vy = -11 - Math.random() * 3;
+                fireBall(vx, vy);
+            }
+        });
+
+        function updateMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+        }
+
+        function fireBall(vx, vy) {
+            balls.push({
+                x: spawnX,
+                y: spawnY,
+                vx: vx,
+                vy: vy,
+                radius: ballRadius,
+                bounces: 0,
+                hasScored: false,
+                passedRimLevel: false
+            });
+        }
+
+        // CONTROL LOOPS
+        function startGame() {
+            // Reset game states
+            score = 0;
+            timeLeft = 60;
+            balls = [];
+            clutchTriggered = false;
+            pointMultiplier = 2;
+            isAiming = false;
+
+            scoreDisplay.textContent = "00";
+            timeDisplay.textContent = "60s";
+            multiplierBadge.textContent = "2x Points";
+            multiplierBadge.classList.remove('clutch');
+            alertAnchor.innerHTML = "";
+
+            startOverlay.classList.add('hidden');
+            gameOverOverlay.classList.add('hidden');
+            recordLogger.classList.add('hidden');
+            initialsField.value = "";
+
+            gameActive = true;
+
+            // Timer Loop Execution
+            clearInterval(timerInterval);
+            timerInterval = setInterval(updateTimer, 1000);
+
+            // Frame Loop Initialization
+            requestAnimationFrame(gameLoop);
+        }
+
+        function updateTimer() {
+            if (!gameActive) return;
+            timeLeft--;
+            timeDisplay.textContent = timeLeft + "s";
+
+            // Multiplier Shift validation at 20 Seconds remaining
+            if (timeLeft <= 20) {
+                pointMultiplier = 3;
+                multiplierBadge.textContent = "3x Points!";
+                multiplierBadge.classList.add('clutch');
+
+                if (!clutchTriggered) {
+                    clutchTriggered = true;
+                    triggerClutchAlert();
+                }
+            }
+
+            if (timeLeft <= 0) {
+                endGame();
+            }
+        }
+
+        function triggerClutchAlert() {
+            const alertDiv = document.createElement('div');
+            alertDiv.id = 'screen-alert';
+            alertDiv.innerHTML = 'CLUTCH TIME!<br><span style="font-size: 1.5rem; color:#fff;">3-POINTERS ACTIVE</span>';
+            alertAnchor.appendChild(alertDiv);
+        }
+
+        function endGame() {
+            gameActive = false;
+            clearInterval(timerInterval);
+            
+            finalScoreText.textContent = `Your Final Score: ${score}`;
+            gameOverOverlay.classList.remove('hidden');
+
+            // High Score Persistence validation check
+            if (score > currentHighScore) {
+                recordLogger.classList.remove('hidden');
+                initialsField.focus();
+            }
+        }
+
+        function saveRecord() {
+            let initials = initialsField.value.trim().toUpperCase();
+            if (!initials) initials = "MIN";
+            
+            currentHighScore = score;
+            currentHighInitials = initials.substring(0, 3);
+
+            localStorage.setItem('bball_high_score', currentHighScore);
+            localStorage.setItem('bball_high_initials', currentHighInitials);
+
+            updateHighScoreUI();
+            recordLogger.classList.add('hidden');
+        }
+
+        function updateHighScoreUI() {
+            recordDisplay.textContent = `${currentHighInitials}: ${currentHighScore}`;
+        }
+
+        // ENGINE ANIMATION FRAME LOOP
+        function gameLoop() {
+            if (!gameActive && balls.length === 0) return;
+
+            updatePhysics();
+            render();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function updatePhysics() {
+            for (let i = balls.length - 1; i >= 0; i--) {
+                let ball = balls[i];
+
+                // Delta Velocity applied via Gravity metrics
+                ball.vy += GRAVITY;
+                ball.x += ball.vx;
+                ball.y += ball.vy;
+
+                // FLOOR INTERACTION BOUNDARY CHECK
+                if (ball.y + ball.radius > canvas.height) {
+                    ball.y = canvas.height - ball.radius;
+                    ball.vy = -ball.vy * 0.55; // Friction bounce degradation force vector
+                    ball.vx *= 0.8;
+                    ball.bounces++;
+                }
+
+                // BACKBOARD INTERACTION COLLISION DETECTION
+                if (ball.x + ball.radius > backboard.x && 
+                    ball.x - ball.radius < backboard.x + backboard.width &&
+                    ball.y + ball.radius > backboard.y && 
+                    ball.y - ball.radius < backboard.y + backboard.height) {
+                    
+                    // Simple programmatic bounce vector inversion
+                    ball.x = backboard.x - ball.radius;
+                    ball.vx = -ball.vx * 0.65;
+                }
+
+                // RIM INTERACTION DETECTIONS (Circle vs point check variables)
+                checkRimCollision(ball, rim.x1, rim.y); // Net Front Tip
+                checkRimCollision(ball, rim.x2, rim.y); // Net Base Support Joint
+
+                // SCORE SCORING MECHANICS HOOP WINDOW DETECTOR
+                // Confirms ball tracking vector shifts downwards cleanly through center line path
+                if (!ball.hasScored && ball.vy > 0 && 
+                    ball.x > rim.x1 + 5 && ball.x < rim.x2 - 5) {
+                    
+                    // Tracks when center node crosses plain layout height
+                    if (ball.y >= rim.y && ball.y - ball.vy <= rim.y) {
+                        ball.hasScored = true;
+                        score += pointMultiplier;
+                        scoreDisplay.textContent = score < 10 ? "0" + score : score;
+                    }
+                }
+
+                // Cull out stale items calculation performance management
+                if (ball.bounces > 5 || ball.x > canvas.width + 100 || ball.x < -100) {
+                    balls.splice(i, 1);
+                }
+            }
+        }
+
+        function checkRimCollision(ball, rimX, rimY) {
+            const distX = ball.x - rimX;
+            const distY = ball.y - rimY;
+            const distance = Math.hypot(distX, distY);
+
+            if (distance < ball.radius) {
+                // Vector Normal Calculation for clean rebound paths
+                const nx = distX / distance;
+                const ny = distY / distance;
+
+                // Positional overlap resolution separation adjustment
+                ball.x = rimX + nx * ball.radius;
+                ball.y = rimY + ny * ball.radius;
+
+                // Reflect Velocity metrics Vector Logic array
+                const dotProduct = ball.vx * nx + ball.vy * ny;
+                ball.vx = (ball.vx - 2 * dotProduct * nx) * 0.7;
+                ball.vy = (ball.vy - 2 * dotProduct * ny) * 0.7;
+            }
+        }
+
+        function render() {
+            // Wipe Canvas clean per Frame loop
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Static Court Environment Assets (Floor Baseline shadow details)
+            ctx.strokeStyle = '#223147';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height - 1);
+            ctx.lineTo(canvas.width, canvas.height - 1);
+            ctx.stroke();
+
+            // Draw Aiming Guide Trajectory Arc String if active vector is valid
+            if (isAiming) {
+                ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+                ctx.lineWidth = 3;
+                ctx.setLineDash([5, 8]);
+                ctx.beginPath();
+                
+                let trajX = spawnX;
+                let trajY = spawnY;
+                let trajVx = (spawnX - mouseX) * 0.13;
+                let trajVy = (spawnY - mouseY) * 0.13;
+
+                ctx.moveTo(trajX, trajY);
+                for (let t = 0; t < 35; t++) {
+                    trajVy += GRAVITY;
+                    trajX += trajVx;
+                    trajY += trajVy;
+                    ctx.lineTo(trajX, trajY);
+                }
+                ctx.stroke();
+                ctx.setLineDash([]); // Reset line formatting defaults
+            }
+
+            // Draw the fixed Ball Rack Placeholder
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.arc(spawnX, spawnY, ballRadius + 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Render active Ball Instances
+            balls.forEach(ball => {
+                ctx.fillStyle = varColor('--accent-orange');
+                ctx.beginPath();
+                ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Classic Basketball Seam lines rendering decoration mapping
+                ctx.strokeStyle = '#111827';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                // Vertical curve profile line
+                ctx.arc(ball.x, ball.y, ball.radius, -Math.PI/3, Math.PI/3);
+                ctx.stroke();
+                ctx.beginPath();
+                // Horizontal spine centerline segment
+                ctx.moveTo(ball.x - ball.radius, ball.y);
+                ctx.lineTo(ball.x + ball.radius, ball.y);
+                ctx.stroke();
+            });
+
+            // Render Hoop Components (Net mesh lines drawn first behind active rim caps)
+            ctx.strokeStyle = 'rgba(248, 250, 252, 0.35)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(rim.x1, rim.y);
+            ctx.lineTo(net.x1 + 10, net.bottomY);
+            ctx.lineTo(net.x2 - 10, net.bottomY);
+            ctx.lineTo(rim.x2, rim.y);
+            // Internal cross stitching detail lines
+            ctx.moveTo(rim.x1 + 20, rim.y);
+            ctx.lineTo(net.x2 - 20, net.bottomY);
+            ctx.moveTo(rim.x2 - 20, rim.y);
+            ctx.lineTo(net.x1 + 20, net.bottomY);
+            ctx.stroke();
+
+            // Draw Backboard Outline panel
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(backboard.x, backboard.y, backboard.width, backboard.height);
+            ctx.strokeStyle = '#64748b';
+            ctx.strokeRect(backboard.x, backboard.y, backboard.width, backboard.height);
+
+            // Draw Rim Node Caps (Front and structural extension brackets)
+            ctx.strokeStyle = '#f97316';
+            ctx.lineWidth = rim.thickness;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(rim.x1, rim.y);
+            ctx.lineTo(rim.x2, rim.y);
+            ctx.stroke();
+        }
+
+        // Direct Variable extractor fallback script helper
+        function varColor(cssVariableName) {
+            return getComputedStyle(document.documentElement).getPropertyValue(cssVariableName).trim();
+        }
+
+        // Preliminary Render Pass to construct UI frames immediately
+        render();
+    </script>
+</body>
+</html>
